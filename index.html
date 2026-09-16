@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Osintgram - Instagram OSINT Tool</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔎</text></svg>">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-icon">🔎</span>
+                    <h1>Osintgram</h1>
+                </div>
+                <button class="sidebar-close" id="sidebarClose">&times;</button>
+            </div>
+
+            <div class="server-section">
+                <div class="section-label">Server</div>
+                <div class="input-group compact">
+                    <input type="text" id="serverUrl" placeholder="http://127.0.0.1:8000" value="http://127.0.0.1:8000">
+                    <button class="btn-sm" id="connectBtn" onclick="connectServer()">Connect</button>
+                </div>
+                <div class="server-status" id="serverStatus">
+                    <span class="dot dot-red"></span> Not connected
+                </div>
+            </div>
+
+            <div class="target-section">
+                <div class="section-label">Target</div>
+                <div class="input-group compact">
+                    <input type="text" id="targetInput" placeholder="Instagram username">
+                    <button class="btn-sm btn-blue" onclick="setTarget()">Set</button>
+                </div>
+                <div class="target-info" id="targetInfo"></div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="section-label">Commands</div>
+                <div class="nav-search">
+                    <input type="text" id="cmdSearch" placeholder="Search commands..." oninput="filterCommands(this.value)">
+                </div>
+
+                <div class="nav-group">
+                    <div class="nav-group-title" onclick="toggleGroup(this)">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                        Profile
+                    </div>
+                    <div class="nav-group-items">
+                        <button class="nav-item" onclick="runCmd('addrs')" data-cmd="addrs">
+                            <span class="cmd-name">addrs</span>
+                            <span class="cmd-desc">Get target address</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('biography')" data-cmd="biography">
+                            <span class="cmd-name">biography</span>
+                            <span class="cmd-desc">Get bio text</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('followers')" data-cmd="followers">
+                            <span class="cmd-name">followers</span>
+                            <span class="cmd-desc">Get followers list</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('following')" data-cmd="following">
+                            <span class="cmd-name">following</span>
+                            <span class="cmd-desc">Get following list</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('fulltitle')" data-cmd="fulltitle">
+                            <span class="cmd-name">fulltitle</span>
+                            <span class="cmd-desc">Get full name</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('info')" data-cmd="info">
+                            <span class="cmd-name">info</span>
+                            <span class="cmd-desc">Get target info</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('pronouns')" data-cmd="pronouns">
+                            <span class="cmd-name">pronouns</span>
+                            <span class="cmd-desc">Get target pronouns</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('private')" data-cmd="private">
+                            <span class="cmd-name">private</span>
+                            <span class="cmd-desc">Check if private</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('pic')" data-cmd="pic">
+                            <span class="cmd-name">pic</span>
+                            <span class="cmd-desc">Get profile picture</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('pp')" data-cmd="pp">
+                            <span class="cmd-name">pp</span>
+                            <span class="cmd-desc">Get profile pic URL</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="nav-group">
+                    <div class="nav-group-title" onclick="toggleGroup(this)">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                        Network
+                    </div>
+                    <div class="nav-group-items">
+                        <button class="nav-item" onclick="runCmd('commenters')" data-cmd="commenters">
+                            <span class="cmd-name">commenters</span>
+                            <span class="cmd-desc">Get top commenters</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('followersfollowing')" data-cmd="followersfollowing">
+                            <span class="cmd-name">followersfollowing</span>
+                            <span class="cmd-desc">Followers who they follow</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('followingsfollowers')" data-cmd="followingsfollowers">
+                            <span class="cmd-name">followingsfollowers</span>
+                            <span class="cmd-desc">Following who follow them</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('mutual')" data-cmd="mutual">
+                            <span class="cmd-name">mutual</span>
+                            <span class="cmd-desc">Mutual followers</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('tagged')" data-cmd="tagged">
+                            <span class="cmd-name">tagged</span>
+                            <span class="cmd-desc">Get tagged users</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('tags')" data-cmd="tags">
+                            <span class="cmd-name">tags</span>
+                            <span class="cmd-desc">Get used tags</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('tocsv')" data-cmd="tocsv">
+                            <span class="cmd-name">tocsv</span>
+                            <span class="cmd-desc">Export to CSV</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('wcommented')" data-cmd="wcommented">
+                            <span class="cmd-name">wcommented</span>
+                            <span class="cmd-desc">Who commented most</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('wtagged')" data-cmd="wtagged">
+                            <span class="cmd-name">wtagged</span>
+                            <span class="cmd-desc">Who tagged them</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('wmentioned')" data-cmd="wmentioned">
+                            <span class="cmd-name">wmentioned</span>
+                            <span class="cmd-desc">Who mentioned them</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="nav-group">
+                    <div class="nav-group-title" onclick="toggleGroup(this)">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                        Content
+                    </div>
+                    <div class="nav-group-items">
+                        <button class="nav-item" onclick="runCmd('captions')" data-cmd="captions">
+                            <span class="cmd-name">captions</span>
+                            <span class="cmd-desc">Get post captions</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('comments')" data-cmd="comments">
+                            <span class="cmd-name">comments</span>
+                            <span class="cmd-desc">Get post comments</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('likes')" data-cmd="likes">
+                            <span class="cmd-name">likes</span>
+                            <span class="cmd-desc">Get post likes</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('mediadown')" data-cmd="mediadown">
+                            <span class="cmd-name">mediadown</span>
+                            <span class="cmd-desc">Download all media</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('posers')" data-cmd="posers">
+                            <span class="cmd-name">posers</span>
+                            <span class="cmd-desc">Get posting times</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('search')" data-cmd="search">
+                            <span class="cmd-name">search</span>
+                            <span class="cmd-desc">Search in posts</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('smash')" data-cmd="smash">
+                            <span class="cmd-name">smash</span>
+                            <span class="cmd-desc">Like last N posts</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('uploaded')" data-cmd="uploaded">
+                            <span class="cmd-name">uploaded</span>
+                            <span class="cmd-desc">Get upload dates</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="nav-group">
+                    <div class="nav-group-title" onclick="toggleGroup(this)">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                        Hashtag & Place
+                    </div>
+                    <div class="nav-group-items">
+                        <button class="nav-item" onclick="runCmd('hashtag')" data-cmd="hashtag">
+                            <span class="cmd-name">hashtag</span>
+                            <span class="cmd-desc">Posts by hashtag</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('place')" data-cmd="place">
+                            <span class="cmd-name">place</span>
+                            <span class="cmd-desc">Posts from a place</span>
+                        </button>
+                        <button class="nav-item" onclick="runCmd('propic')" data-cmd="propic">
+                            <span class="cmd-name">propic</span>
+                            <span class="cmd-desc">Download profile pic</span>
+                        </button>
+                    </div>
+                </div>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <header class="topbar">
+                <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+                </button>
+                <div class="topbar-title" id="topbarTitle">Osintgram</div>
+                <div class="topbar-actions">
+                    <button class="btn-sm" onclick="showHelp()">Help</button>
+                    <button class="btn-sm" onclick="exportResults()">Export</button>
+                </div>
+            </header>
+
+            <div class="content" id="content">
+                <div class="welcome-screen">
+                    <div class="welcome-icon">🔎📸</div>
+                    <h2>Osintgram Web Interface</h2>
+                    <p>Instagram OSINT tool with AI-powered analysis</p>
+
+                    <div class="features-grid">
+                        <div class="feature-card">
+                            <div class="feature-icon">👤</div>
+                            <h3>Profile Analysis</h3>
+                            <p>Bio, followers, following, profile picture, and full profile details</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">🌐</div>
+                            <h3>Network Mapping</h3>
+                            <p>Mutual followers, commenters, tagged users, and relationship analysis</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">📸</div>
+                            <h3>Content Analysis</h3>
+                            <p>Posts, captions, comments, likes, posting patterns, and media download</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">📍</div>
+                            <h3>Location & Tags</h3>
+                            <p>Hashtag search, place-based posts, and geolocation analysis</p>
+                        </div>
+                    </div>
+
+                    <div class="setup-steps">
+                        <h3>Quick Start</h3>
+                        <div class="step">
+                            <span class="step-num">1</span>
+                            <div>
+                                <strong>Install Osintgram</strong>
+                                <code>git clone https://github.com/Datalux/Osintgram && cd Osintgram</code>
+                            </div>
+                        </div>
+                        <div class="step">
+                            <span class="step-num">2</span>
+                            <div>
+                                <strong>Start the server</strong>
+                                <code>pip install -r requirements.txt && uvicorn src.web.app:app --host 0.0.0.0 --port 8000</code>
+                            </div>
+                        </div>
+                        <div class="step">
+                            <span class="step-num">3</span>
+                            <div>
+                                <strong>Connect from this interface</strong>
+                                Enter your server URL above and click Connect
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
