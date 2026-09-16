@@ -2,6 +2,7 @@ let serverUrl = '';
 let connected = false;
 let target = '';
 let resultHistory = [];
+let toolsData = [];
 
 function showToast(msg, type = 'info') {
     const toast = document.getElementById('toast');
@@ -37,19 +38,64 @@ async function connectServer() {
     statusEl.innerHTML = '<span class="loading-spinner"></span> Connecting...';
 
     try {
-        const resp = await fetch(`${serverUrl}/`, { method: 'GET', mode: 'cors' });
-        if (resp.ok || resp.status === 200 || resp.status === 404) {
+        const resp = await fetch(`${serverUrl}/api/about`);
+        if (resp.ok) {
+            const data = await resp.json();
             connected = true;
             statusEl.innerHTML = '<span class="dot dot-green"></span> Connected';
-            showToast('Connected to server', 'success');
+            showToast('Connected to Osintgram', 'success');
+            loadTools();
+            loadBalance();
         } else {
             throw new Error(`HTTP ${resp.status}`);
         }
     } catch (e) {
         connected = false;
         statusEl.innerHTML = '<span class="dot dot-red"></span> Connection failed';
-        showToast('Cannot reach server. Make sure Osintgram is running.', 'error');
+        if (window.location.protocol === 'https:' && url.startsWith('http://')) {
+            showToast('HTTPS site cannot connect to HTTP server. Use ngrok or run locally.', 'error');
+        } else {
+            showToast('Cannot reach server. Is Osintgram running?', 'error');
+        }
     }
+}
+
+async function loadTools() {
+    try {
+        const resp = await fetch(`${serverUrl}/api/tools`);
+        if (resp.ok) {
+            toolsData = await resp.json();
+            renderDynamicCommands();
+        }
+    } catch (e) {}
+}
+
+async function loadBalance() {
+    try {
+        const resp = await fetch(`${serverUrl}/api/balance`);
+        if (resp.ok) {
+            const data = await resp.json();
+            document.getElementById('balanceInfo').innerHTML = `<span class="dot dot-green"></span> Balance: ${data.balance || 'N/A'}`;
+        }
+    } catch (e) {}
+}
+
+function renderDynamicCommands() {
+    if (!toolsData || !toolsData.length) return;
+    const container = document.getElementById('dynamicCommands');
+    if (!container) return;
+
+    let html = '';
+    toolsData.forEach(tool => {
+        const cmd = tool.name || tool.id || '';
+        const desc = tool.description || tool.help || '';
+        const needsInput = tool.parameters && tool.parameters.length > 0;
+        html += `<button class="nav-item" onclick="runCmd('${cmd}')" data-cmd="${cmd}">
+            <span class="cmd-name">${cmd}</span>
+            <span class="cmd-desc">${desc}</span>
+        </button>`;
+    });
+    container.innerHTML = html;
 }
 
 async function setTarget() {
@@ -72,22 +118,14 @@ async function runCmd(cmd) {
     if (navItem) navItem.classList.add('running');
 
     const content = document.getElementById('content');
-    const cardId = `result-${cmd}-${Date.now()}`;
-
     const card = document.createElement('div');
     card.className = 'result-card';
-    card.id = cardId;
     card.innerHTML = `
         <div class="result-header">
-            <h3>
-                <span class="loading-spinner"></span>
-                ${cmd}
-            </h3>
+            <h3><span class="loading-spinner"></span> ${cmd}</h3>
             <span class="status-badge">Running</span>
         </div>
-        <div class="result-body">
-            <pre>Executing ${cmd}...</pre>
-        </div>
+        <div class="result-body"><pre>Executing ${cmd}...</pre></div>
     `;
     content.insertBefore(card, content.firstChild);
 
@@ -100,8 +138,7 @@ async function runCmd(cmd) {
 
     let input = null;
     if (commandsNeedingInput[cmd]) {
-        const info = commandsNeedingInput[cmd];
-        input = prompt(info.placeholder);
+        input = prompt(commandsNeedingInput[cmd].placeholder);
         if (input === null) {
             card.remove();
             if (navItem) navItem.classList.remove('running');
@@ -111,87 +148,56 @@ async function runCmd(cmd) {
 
     try {
         let url = `${serverUrl}/api/${cmd}`;
-        let options = { method: 'GET', mode: 'cors' };
-
-        if (target) {
-            url += `?target=${encodeURIComponent(target)}`;
-        }
-
+        const params = new URLSearchParams();
+        if (target) params.set('target', target);
         if (input && commandsNeedingInput[cmd]) {
-            const sep = url.includes('?') ? '&' : '?';
-            url += `${sep}${commandsNeedingInput[cmd].param}=${encodeURIComponent(input)}`;
+            params.set(commandsNeedingInput[cmd].param, input);
         }
+        const qs = params.toString();
+        if (qs) url += `?${qs}`;
 
-        const resp = await fetch(url, options);
+        const resp = await fetch(url);
         const data = await resp.json();
 
-        let bodyHtml = '';
         if (data.error) {
-            bodyHtml = `<pre style="color: var(--red)">${escapeHtml(data.error)}</pre>`;
-            card.querySelector('.result-header h3').innerHTML = `${cmd}`;
+            card.querySelector('.result-body').innerHTML = `<pre style="color:var(--red)">${escapeHtml(data.error)}</pre>`;
             card.querySelector('.status-badge').className = 'status-badge error';
             card.querySelector('.status-badge').textContent = 'Error';
-            if (navItem) {
-                navItem.classList.remove('running');
-                navItem.classList.add('error');
-            }
+            if (navItem) { navItem.classList.remove('running'); navItem.classList.add('error'); }
         } else {
-            bodyHtml = formatResult(cmd, data);
-            card.querySelector('.result-header h3').innerHTML = `${cmd}`;
-            card.querySelector('.status-badge').className = 'status-badge';
+            card.querySelector('.result-body').innerHTML = formatResult(cmd, data);
             card.querySelector('.status-badge').textContent = 'Done';
-            if (navItem) {
-                navItem.classList.remove('running');
-                navItem.classList.add('done');
-            }
+            if (navItem) { navItem.classList.remove('running'); navItem.classList.add('done'); }
         }
-
-        card.querySelector('.result-body').innerHTML = bodyHtml;
+        card.querySelector('.result-header h3').innerHTML = cmd;
         resultHistory.push({ cmd, data, time: new Date() });
-
     } catch (e) {
-        card.querySelector('.result-body').innerHTML = `<pre style="color: var(--red)">Request failed: ${escapeHtml(e.message)}\n\nMake sure your Osintgram server is running and accessible.</pre>`;
-        card.querySelector('.result-header h3').innerHTML = `${cmd}`;
+        card.querySelector('.result-body').innerHTML = `<pre style="color:var(--red)">Failed: ${escapeHtml(e.message)}</pre>`;
         card.querySelector('.status-badge').className = 'status-badge error';
         card.querySelector('.status-badge').textContent = 'Failed';
-        if (navItem) {
-            navItem.classList.remove('running');
-            navItem.classList.add('error');
-        }
+        if (navItem) { navItem.classList.remove('running'); navItem.classList.add('error'); }
     }
 
-    setTimeout(() => {
-        if (navItem) navItem.classList.remove('running');
-    }, 2000);
+    setTimeout(() => { if (navItem) navItem.classList.remove('running'); }, 2000);
 }
 
 function formatResult(cmd, data) {
-    if (typeof data === 'string') {
-        return `<pre>${escapeHtml(data)}</pre>`;
-    }
-
-    if (data.output) {
-        return `<pre>${escapeHtml(typeof data.output === 'string' ? data.output : JSON.stringify(data.output, null, 2))}</pre>`;
-    }
-
+    if (typeof data === 'string') return `<pre>${escapeHtml(data)}</pre>`;
+    if (data.output) return `<pre>${escapeHtml(typeof data.output === 'string' ? data.output : JSON.stringify(data.output, null, 2))}</pre>`;
     if (Array.isArray(data)) {
         if (data.length === 0) return '<pre>No results found.</pre>';
         return `<pre>${escapeHtml(data.join('\n'))}</pre>`;
     }
-
     if (typeof data === 'object') {
         const entries = Object.entries(data);
         if (entries.length === 0) return '<pre>No results found.</pre>';
-
         let html = '<div class="data-grid">';
         for (const [key, val] of entries) {
             const display = typeof val === 'object' ? JSON.stringify(val, null, 2) : String(val);
             html += `<div class="data-item"><div class="label">${escapeHtml(key)}</div><div class="value">${escapeHtml(display)}</div></div>`;
         }
-        html += '</div>';
-        return html;
+        return html + '</div>';
     }
-
     return `<pre>${escapeHtml(String(data))}</pre>`;
 }
 
@@ -202,20 +208,28 @@ function escapeHtml(str) {
 }
 
 function showHelp() {
-    const content = document.getElementById('content');
-    content.innerHTML = `
+    document.getElementById('content').innerHTML = `
         <div class="result-card">
-            <div class="result-header"><h3>Osintgram Commands</h3></div>
+            <div class="result-header"><h3>Connection Help</h3></div>
             <div class="result-body">
                 <div class="data-grid">
-                    <div class="data-item"><div class="label">Profile</div><div class="value">addrs, biography, followers, following, fulltitle, info, pronouns, private, pic, pp</div></div>
-                    <div class="data-item"><div class="label">Network</div><div class="value">commenters, followersfollowing, followingsfollowers, mutual, tagged, tags, tocsv, wcommented, wtagged, wmentioned</div></div>
-                    <div class="data-item"><div class="label">Content</div><div class="value">captions, comments, likes, mediadown, posers, search, smash, uploaded</div></div>
-                    <div class="data-item"><div class="label">Search</div><div class="value">hashtag, place, propic</div></div>
+                    <div class="data-item">
+                        <div class="label">Problem</div>
+                        <div class="value">GitHub Pages (HTTPS) cannot connect to your local HTTP server</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="label">Solution 1 — ngrok</div>
+                        <div class="value">Run: <code>ngrok http 8000</code> then paste the HTTPS URL</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="label">Solution 2 — cloudflared</div>
+                        <div class="value">Run: <code>cloudflared tunnel --url http://localhost:8000</code></div>
+                    </div>
+                    <div class="data-item">
+                        <div class="label">Solution 3 — Run locally</div>
+                        <div class="value">Download index.html, style.css, app.js and open in browser</div>
+                    </div>
                 </div>
-                <br><p style="color:var(--text-secondary);font-size:0.85rem">
-                    Click any command in the sidebar to run it. Some commands will ask for input (hashtag, place, count, etc.)
-                </p>
             </div>
         </div>
     `;
@@ -223,21 +237,17 @@ function showHelp() {
 
 function exportResults() {
     if (resultHistory.length === 0) return showToast('No results to export', 'error');
-    const json = JSON.stringify(resultHistory, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
+    const blob = new Blob([JSON.stringify(resultHistory, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
-    a.href = url;
+    a.href = URL.createObjectURL(blob);
     a.download = `osintgram-results-${target || 'export'}.json`;
     a.click();
-    URL.revokeObjectURL(url);
     showToast('Results exported', 'success');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     const savedUrl = localStorage.getItem('osintgram_server');
     if (savedUrl) document.getElementById('serverUrl').value = savedUrl;
-
     document.getElementById('serverUrl').addEventListener('change', (e) => {
         localStorage.setItem('osintgram_server', e.target.value);
     });

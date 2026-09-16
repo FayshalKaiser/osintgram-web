@@ -507,6 +507,28 @@ body {
     font-weight: 500;
 }
 
+.warning-box {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: rgba(255, 68, 68, 0.1);
+    border: 1px solid rgba(255, 68, 68, 0.3);
+    border-radius: 8px;
+    text-align: left;
+    font-size: 0.85rem;
+}
+
+.warning-box strong {
+    color: var(--red);
+    display: block;
+    margin-bottom: 0.3rem;
+}
+
+.warning-box p {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    line-height: 1.5;
+}
+
 .result-actions {
     padding: 0.5rem 1rem;
     border-top: 1px solid var(--border);

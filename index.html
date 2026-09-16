@@ -27,6 +27,7 @@
                 <div class="server-status" id="serverStatus">
                     <span class="dot dot-red"></span> Not connected
                 </div>
+                <div class="server-status" id="balanceInfo" style="margin-top:0.2rem"></div>
             </div>
 
             <div class="target-section">
@@ -266,10 +267,22 @@
                         <div class="step">
                             <span class="step-num">3</span>
                             <div>
-                                <strong>Connect from this interface</strong>
-                                Enter your server URL above and click Connect
+                                <strong>Expose with ngrok (required for HTTPS)</strong>
+                                <code>ngrok http 8000</code> then copy the https URL
                             </div>
                         </div>
+                        <div class="step">
+                            <span class="step-num">4</span>
+                            <div>
+                                <strong>Connect from this interface</strong>
+                                Paste the ngrok HTTPS URL above and click Connect
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="warning-box">
+                        <strong>HTTPS Required</strong>
+                        <p>This site runs on HTTPS. Your local server is HTTP. You must use <strong>ngrok</strong> or <strong>cloudflared</strong> to create an HTTPS tunnel, or download the files and run locally.</p>
                     </div>
                 </div>
             </div>
